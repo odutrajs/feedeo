@@ -1,0 +1,203 @@
+@import "tailwindcss";
+
+:root {
+  --bg-primary: #000000;
+  --bg-elevated: #1c1c1e;
+  --bg-secondary: #2c2c2e;
+  --bg-tertiary: #3a3a3c;
+  --fill-glass: rgba(255, 255, 255, 0.04);
+  --fill-glass-hover: rgba(255, 255, 255, 0.08);
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-active: rgba(255, 255, 255, 0.12);
+  --text-primary: #f5f5f7;
+  --text-secondary: rgba(245, 245, 247, 0.55);
+  --text-tertiary: rgba(245, 245, 247, 0.35);
+  --accent: #a855f7;
+  --accent-2: #ec4899;
+  --accent-soft: rgba(168, 85, 247, 0.15);
+  --green: #30d158;
+  --green-soft: rgba(48, 209, 88, 0.15);
+  --red: #ff453a;
+  --red-soft: rgba(255, 69, 58, 0.15);
+  --orange: #ff9f0a;
+  --orange-soft: rgba(255, 159, 10, 0.15);
+  --purple: #bf5af2;
+  --purple-soft: rgba(191, 90, 242, 0.15);
+  --cyan: #64d2ff;
+  --cyan-soft: rgba(100, 210, 255, 0.15);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html {
+  overflow-x: hidden;
+}
+
+body {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: -apple-system, "SF Pro Display", "SF Pro Text", "Helvetica Neue",
+    system-ui, sans-serif;
+  font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  letter-spacing: -0.01em;
+  overflow-x: hidden;
+  padding-bottom: var(--safe-bottom);
+}
+
+::selection {
+  background: rgba(168, 85, 247, 0.35);
+  color: #fff;
+}
+
+@keyframes shimmer {
+  0% { opacity: 0.5; }
+  50% { opacity: 1; }
+  100% { opacity: 0.5; }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes pulseRing {
+  0% { box-shadow: 0 0 0 0 rgba(168, 85, 247, 0.4); }
+  70% { box-shadow: 0 0 0 6px rgba(168, 85, 247, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(168, 85, 247, 0); }
+}
+
+/* ── Marketing / landing helpers ─────────────────────────── */
+
+.text-gradient {
+  background: linear-gradient(120deg, #c084fc 0%, #a855f7 40%, #ec4899 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.btn-gradient {
+  background: linear-gradient(120deg, #a855f7, #ec4899);
+  transition: opacity 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.btn-gradient:hover {
+  opacity: 0.9;
+  box-shadow: 0 8px 32px rgba(168, 85, 247, 0.35);
+}
+
+.btn-gradient:active {
+  transform: scale(0.97);
+}
+
+@keyframes floatSlow {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.animate-float {
+  animation: floatSlow 6s ease-in-out infinite;
+}
+
+.hero-glow {
+  background:
+    radial-gradient(600px 320px at 50% -10%, rgba(168, 85, 247, 0.22), transparent 70%),
+    radial-gradient(480px 280px at 80% 10%, rgba(236, 72, 153, 0.12), transparent 70%);
+}
+
+.animate-shimmer {
+  animation: shimmer 2s ease-in-out infinite;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-pulse-ring {
+  animation: pulseRing 2s ease infinite;
+}
+
+.glass {
+  background: var(--fill-glass);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  border: 1px solid var(--border-subtle);
+}
+
+.glass-hover:hover {
+  background: var(--fill-glass-hover);
+  border-color: var(--border-active);
+}
+
+@media (hover: none) {
+  .glass-hover:active {
+    background: var(--fill-glass-hover);
+    border-color: var(--border-active);
+  }
+}
+
+input, textarea, select {
+  caret-color: var(--accent);
+  font-size: 16px;
+}
+
+@media (min-width: 640px) {
+  input, textarea, select {
+    font-size: inherit;
+  }
+}
+
+input:focus, textarea:focus {
+  outline: none;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}

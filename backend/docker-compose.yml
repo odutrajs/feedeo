@@ -1,0 +1,22 @@
+services:
+  minio:
+    image: minio/minio:latest
+    container_name: creators-minio
+    command: server /data --console-address ":9001"
+    # 9010/9011 no host para não conflitar com outros MinIO locais
+    ports:
+      - "9010:9000"
+      - "9011:9001"
+    environment:
+      MINIO_ROOT_USER: creators
+      MINIO_ROOT_PASSWORD: creators123
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  minio-data:
