@@ -357,11 +357,11 @@ export default function LandingPage() {
           <div className="flex items-center gap-2.5">
             <LogoMark size={20} />
             <span className="text-[13px] font-semibold tracking-tight">
-              virou<span className="text-gradient">.ai</span>
+              feed<span className="text-gradient">eo</span>
             </span>
           </div>
           <p className="text-[11px] text-white/25 sm:text-[12px]">
-            © {new Date().getFullYear()} virou.ai — Vídeos virais gerados por IA.
+            © {new Date().getFullYear()} feedeo — Vídeos virais gerados por IA.
           </p>
         </div>
       </footer>

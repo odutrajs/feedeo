@@ -2,7 +2,7 @@ import axios from "axios";
 
 export const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8005";
 
-export const TOKEN_STORAGE_KEY = "virou.token";
+export const TOKEN_STORAGE_KEY = "feedeo.token";
 
 export function getToken(): string | null {
   if (typeof window === "undefined") return null;

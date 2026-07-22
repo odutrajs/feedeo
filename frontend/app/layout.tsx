@@ -4,7 +4,7 @@ import Header from "@/components/Header";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "virou.ai — Seu vídeo pronto para viralizar",
+  title: "feedeo — Seu vídeo pronto para viralizar",
   description:
     "Transforme uma ideia em um vídeo vertical completo com IA: roteiro, narração, imagens, legendas e edição. Pronto para TikTok, Reels e Shorts.",
 };

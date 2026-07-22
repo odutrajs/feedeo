@@ -9,14 +9,14 @@ export function LogoMark({ size = 26 }: { size?: number }) {
       className="shrink-0"
     >
       <defs>
-        <linearGradient id="virou-g" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+        <linearGradient id="feedeo-g" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
           <stop stopColor="#a855f7" />
           <stop offset="1" stopColor="#ec4899" />
         </linearGradient>
       </defs>
-      <rect width="64" height="64" rx="17" fill="url(#virou-g)" />
-      <rect width="64" height="64" rx="17" fill="url(#virou-g)" style={{ mixBlendMode: "overlay" }} opacity="0.35" />
-      {/* Arco de rotação: a ideia "virando" vídeo */}
+      <rect width="64" height="64" rx="17" fill="url(#feedeo-g)" />
+      <rect width="64" height="64" rx="17" fill="url(#feedeo-g)" style={{ mixBlendMode: "overlay" }} opacity="0.35" />
+      {/* Arco de rotação */}
       <circle
         cx="32"
         cy="32"
@@ -38,9 +38,9 @@ export function LogoMark({ size = 26 }: { size?: number }) {
 export function LogoWordmark({ className = "" }: { className?: string }) {
   return (
     <span className={`font-semibold tracking-tight ${className}`}>
-      virou
+      feed
       <span className="bg-gradient-to-r from-[#a855f7] to-[#ec4899] bg-clip-text text-transparent">
-        .ai
+        eo
       </span>
     </span>
   );
