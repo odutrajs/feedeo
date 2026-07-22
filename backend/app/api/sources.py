@@ -22,7 +22,7 @@ router = APIRouter(prefix="/api/projects/{project_id}/sources", tags=["sources"]
 
 VIDEO_EXTENSIONS = {".mp4", ".mov", ".m4v", ".webm", ".mkv", ".avi"}
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".heic"}
-MAX_UPLOAD_BYTES = 800 * 1024 * 1024  # 800 MB por arquivo
+MAX_UPLOAD_BYTES = 2 * 1024 * 1024 * 1024  # 2 GB por arquivo
 
 
 def _get_project(db: Session, project_id: int, user: User) -> Project:

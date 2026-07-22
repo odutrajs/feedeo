@@ -18,7 +18,7 @@ router = APIRouter(prefix="/api/library", tags=["library"])
 
 VIDEO_EXTENSIONS = {".mp4", ".mov", ".m4v", ".webm", ".mkv", ".avi"}
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".heic"}
-MAX_UPLOAD_BYTES = 800 * 1024 * 1024
+MAX_UPLOAD_BYTES = 2 * 1024 * 1024 * 1024  # 2 GB por arquivo
 
 
 def _safe_filename(name: str) -> str:
