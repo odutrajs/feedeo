@@ -17,3 +17,4 @@ pyjwt>=2.9
 stripe>=11.0
 email-validator>=2.2
 psycopg2-binary>=2.9
+passlib[bcrypt]>=1.7
