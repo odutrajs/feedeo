@@ -360,9 +360,17 @@ export default function LandingPage() {
               feed<span className="text-gradient">eo</span>
             </span>
           </div>
-          <p className="text-[11px] text-white/25 sm:text-[12px]">
-            © {new Date().getFullYear()} feedeo — Vídeos virais gerados por IA.
-          </p>
+          <div className="flex flex-col items-center gap-2 sm:flex-row sm:gap-4">
+            <Link
+              href="/privacidade"
+              className="text-[11px] text-white/35 transition hover:text-white/60 sm:text-[12px]"
+            >
+              Política de Privacidade
+            </Link>
+            <p className="text-[11px] text-white/25 sm:text-[12px]">
+              © {new Date().getFullYear()} feedeo — Vídeos virais gerados por IA.
+            </p>
+          </div>
         </div>
       </footer>
     </div>

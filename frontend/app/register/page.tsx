@@ -93,7 +93,15 @@ export default function RegisterPage() {
           </button>
         </form>
 
-        <p className="mt-5 text-center text-[13px] text-white/40">
+        <p className="mt-5 text-center text-[12px] leading-relaxed text-white/35">
+          Ao criar a conta, você concorda com nossa{" "}
+          <Link href="/privacidade" className="text-[#c084fc] hover:underline">
+            Política de Privacidade
+          </Link>
+          .
+        </p>
+
+        <p className="mt-4 text-center text-[13px] text-white/40">
           Já tem conta?{" "}
           <Link href="/login" className="font-medium text-[#c084fc] hover:underline">
             Entrar
