@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, BrandIdentity, mediaUrl, Project, SocialPost, WorkspaceDetail, instagramConnectUrl, formatScheduledAt, localDateTimeToISO, toLocalDateValue, toLocalTimeValue, shouldPollPublications } from "@/lib/api";
+import InsightsPanel from "@/components/InsightsPanel";
 
 // ── Constants ────────────────────────────────────────────────────────
 
@@ -212,13 +213,17 @@ function PostCard({
         )}
 
         {latestPub && latestPub.status !== "scheduled" && (
-          <div className="flex items-center gap-2 rounded-lg bg-white/[0.03] px-2.5 py-1.5">
-            <span className={`h-1.5 w-1.5 rounded-full ${latestPub.status === "published" ? "bg-green-400" : latestPub.status === "failed" ? "bg-red-400" : "bg-yellow-400 animate-pulse"}`} />
-            <span className="text-[11px] text-white/50">
-              {latestPub.status === "published" ? "Publicado no Instagram" : latestPub.status === "failed" ? latestPub.error ?? "Falha ao publicar" : "Publicando..."}
-            </span>
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 rounded-lg bg-white/[0.03] px-2.5 py-1.5">
+              <span className={`h-1.5 w-1.5 rounded-full ${latestPub.status === "published" ? "bg-green-400" : latestPub.status === "failed" ? "bg-red-400" : "bg-yellow-400 animate-pulse"}`} />
+              <span className="text-[11px] text-white/50">
+                {latestPub.status === "published" ? "Publicado no Instagram" : latestPub.status === "failed" ? latestPub.error ?? "Falha ao publicar" : "Publicando..."}
+              </span>
+            </div>
+
+            {/* Insights da publicação */}
             {latestPub.status === "published" && latestPub.external_id && (
-              <a href={`https://www.instagram.com/p/${latestPub.external_id}/`} target="_blank" rel="noopener noreferrer" className="ml-auto text-[10px] text-[#c084fc] hover:underline">Ver →</a>
+              <InsightsPanel pubId={latestPub.id} />
             )}
           </div>
         )}

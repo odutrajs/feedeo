@@ -6,6 +6,7 @@ from fastapi.responses import FileResponse, RedirectResponse
 
 from app.api.auth import router as auth_router
 from app.api.billing import router as billing_router
+from app.api.insights import router as insights_router
 from app.api.instagram_auth import router as instagram_auth_router
 from app.api.library import router as library_router
 from app.api.library import sources_library_router
@@ -56,6 +57,7 @@ app.include_router(workspaces_router)
 app.include_router(publishing_router)
 app.include_router(scheduler_router)
 app.include_router(instagram_auth_router)
+app.include_router(insights_router)
 app.include_router(sources_router)
 app.include_router(sources_library_router)
 app.include_router(library_router)
@@ -63,7 +65,7 @@ app.include_router(library_router)
 settings.storage_dir.mkdir(parents=True, exist_ok=True)
 
 
-@app.get("/media/{key:path}")
+@app.api_route("/media/{key:path}", methods=["GET", "HEAD"])
 def serve_media(key: str):
     """Serve mídia do disco local; se não estiver no disco, redireciona para o MinIO."""
     local_path = (settings.storage_dir / key).resolve()

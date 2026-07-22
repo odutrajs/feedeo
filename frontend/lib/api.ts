@@ -514,6 +514,33 @@ export const api = {
 
   cancelSchedule: (publicationId: number) =>
     http.post(`/api/scheduler/cancel-schedule`, { publication_id: publicationId }).then((r) => r.data),
+
+  // ── Instagram Insights ────────────────────────────────────────────
+
+  getPublicationInsights: (publicationId: number) =>
+    http.get<PublicationInsights>(`/api/insights/publication/${publicationId}`).then((r) => r.data),
+
+  getAccountInsights: (params: { workspaceId: number; period?: string; since?: number; until?: number }) =>
+    http.get<AccountInsights>(`/api/insights/account`, {
+      params: {
+        workspace_id: params.workspaceId,
+        period: params.period ?? "day",
+        since: params.since,
+        until: params.until,
+      },
+    }).then((r) => r.data),
+
+  getWorkspaceInsights: (workspaceId: number) =>
+    http.get<WorkspaceInsightsSummary>(`/api/insights/workspace/${workspaceId}`).then((r) => r.data),
+
+  getRecentMedia: (params: { workspaceId: number; limit?: number; includeInsights?: boolean }) =>
+    http.get<RecentMedia[]>(`/api/insights/recent-media`, {
+      params: {
+        workspace_id: params.workspaceId,
+        limit: params.limit ?? 25,
+        include_insights: params.includeInsights ?? false,
+      },
+    }).then((r) => r.data),
 };
 
 export interface ScheduleResponse {
@@ -527,6 +554,77 @@ export interface InstagramStatus {
   account_id?: number;
   name?: string;
   profile_picture_url?: string | null;
+}
+
+// ── Instagram Insights ──────────────────────────────────────────────
+
+export interface MediaInsights {
+  media_id: string;
+  likes: number;
+  comments: number;
+  shares: number;
+  saved: number;
+  reach: number;
+  views: number;
+  total_interactions: number;
+  reposts: number;
+  avg_watch_time_ms: number;
+  video_view_total_time_ms: number;
+  extra: Record<string, unknown>;
+}
+
+export interface MediaInfo {
+  id: string;
+  caption: string | null;
+  media_type: string | null;
+  media_product_type: string | null;
+  permalink: string | null;
+  thumbnail_url: string | null;
+  timestamp: string | null;
+  like_count: number | null;
+  comments_count: number | null;
+}
+
+export interface PublicationInsights {
+  publication_id: number;
+  external_id: string;
+  media_info: MediaInfo | null;
+  insights: MediaInsights;
+}
+
+export interface AccountInsights {
+  ig_user_id: string;
+  period: string;
+  reach: number;
+  views: number;
+  follower_count: number;
+  extra: Record<string, unknown>;
+}
+
+export interface RecentMedia {
+  id: string;
+  caption: string | null;
+  media_type: string | null;
+  media_product_type: string | null;
+  permalink: string | null;
+  thumbnail_url: string | null;
+  timestamp: string | null;
+  like_count: number | null;
+  comments_count: number | null;
+  insights: MediaInsights | null;
+}
+
+export interface WorkspaceInsightsSummary {
+  workspace_id: number;
+  account: AccountInsights | null;
+  publications: PublicationInsights[];
+  total_views: number;
+  total_reach: number;
+  total_likes: number;
+  total_comments: number;
+  total_shares: number;
+  total_saved: number;
+  publication_count: number;
 }
 
 export interface PublicationResponse {

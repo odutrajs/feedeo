@@ -199,7 +199,7 @@ export default function LandingPage() {
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Link
-              href="/dashboard"
+              href="/workspaces"
               className="btn-gradient w-full rounded-full px-8 py-3.5 text-[14px] font-semibold text-white shadow-xl shadow-[#a855f7]/25 sm:w-auto"
             >
               Criar meu primeiro vídeo
@@ -343,7 +343,7 @@ export default function LandingPage() {
             Enquanto você lê isso, outros criadores estão publicando. Comece agora.
           </p>
           <Link
-            href="/dashboard"
+            href="/workspaces"
             className="btn-gradient relative mt-8 inline-block rounded-full px-8 py-3.5 text-[14px] font-semibold text-white shadow-xl shadow-[#a855f7]/25"
           >
             Criar meu primeiro vídeo

@@ -29,7 +29,7 @@ IG_AUTHORIZE_URL = "https://www.instagram.com/oauth/authorize"
 IG_TOKEN_URL = "https://api.instagram.com/oauth/access_token"
 IG_GRAPH_URL = "https://graph.instagram.com"
 
-SCOPES = "instagram_business_basic,instagram_business_content_publish"
+SCOPES = "instagram_business_basic,instagram_business_content_publish,instagram_business_manage_insights"
 
 
 @router.get("/connect")

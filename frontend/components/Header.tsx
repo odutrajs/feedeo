@@ -50,11 +50,8 @@ export default function Header() {
           {/* ── Navegação central ─────────────────────────── */}
           {user && hasAccess ? (
             <nav className="hidden items-center gap-5 text-[12px] font-medium text-white/45 md:flex">
-              <Link href="/workspaces" className={`transition-colors hover:text-white/80 ${pathname.startsWith("/workspaces") ? "text-white/90" : ""}`}>
+              <Link href="/workspaces" className={`transition-colors hover:text-white/80 ${pathname.startsWith("/workspaces") || pathname.startsWith("/projects") ? "text-white/90" : ""}`}>
                 Meus projetos
-              </Link>
-              <Link href="/dashboard" className={`transition-colors hover:text-white/80 ${pathname.startsWith("/dashboard") || pathname.startsWith("/projects") ? "text-white/90" : ""}`}>
-                Vídeos
               </Link>
               <Link href="/billing" className={`transition-colors hover:text-white/80 ${pathname.startsWith("/billing") ? "text-white/90" : ""}`}>
                 Assinatura
@@ -115,9 +112,6 @@ export default function Header() {
                       <>
                         <Link href="/workspaces" className="rounded-xl px-3 py-2 transition-colors hover:bg-white/[0.06] hover:text-white">
                           Meus projetos
-                        </Link>
-                        <Link href="/dashboard" className="rounded-xl px-3 py-2 transition-colors hover:bg-white/[0.06] hover:text-white">
-                          Criar vídeo
                         </Link>
                       </>
                     )}

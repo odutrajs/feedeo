@@ -13,5 +13,7 @@ App em http://localhost:3000
 
 Rotas:
 - `/` — landing
-- `/dashboard` — painel de criação
-- `/projects/{id}` — detalhe do projeto
+- `/workspaces` — lista de projetos
+- `/workspaces/{id}` — detalhe do projeto (vídeos, posts, calendário)
+- `/dashboard?workspace={id}` — criação de vídeo (requer workspace)
+- `/projects/{id}` — detalhe do vídeo

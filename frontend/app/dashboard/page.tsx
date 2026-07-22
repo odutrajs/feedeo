@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -110,6 +110,11 @@ function Dashboard() {
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
 
+  // Sem workspace vinculado, redireciona para projetos
+  useEffect(() => {
+    if (!workspaceId) router.replace("/workspaces");
+  }, [workspaceId, router]);
+
   const {
     data: projects = [],
     error,
@@ -206,6 +211,8 @@ function Dashboard() {
 
   const errorMessage =
     createMutation.error?.message ?? (error instanceof Error ? error.message : null);
+
+  if (!workspaceId) return null;
 
   return (
     <div className="mx-auto max-w-[980px] space-y-8 px-4 pb-16 pt-2 animate-slide-up sm:space-y-10 sm:px-6">

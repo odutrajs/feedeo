@@ -22,6 +22,7 @@ import {
   stageOrder,
 } from "@/lib/api";
 import { LibraryPickerModal } from "@/components/Library";
+import InsightsPanel from "@/components/InsightsPanel";
 
 // ── Icons ────────────────────────────────────────────────────────────
 
@@ -966,41 +967,38 @@ function InstagramPublishSection({ project }: { project: ProjectDetail }) {
         </div>
       )}
 
-      {/* Status de publicações recentes */}
+      {/* Status de publicações recentes + Insights */}
       {publications && publications.length > 0 && (
-        <div className="space-y-2 border-t border-white/[0.06] pt-3">
+        <div className="space-y-3 border-t border-white/[0.06] pt-3">
           <p className="text-[10px] font-semibold uppercase tracking-widest text-white/25">
             Publicações
           </p>
           {publications.slice(0, 3).map((pub) => (
-            <div key={pub.id} className="flex items-center justify-between rounded-lg bg-white/[0.03] px-3 py-2">
-              <div className="flex items-center gap-2">
-                <span className={`h-2 w-2 rounded-full ${
-                  pub.status === "published" ? "bg-green-400" :
-                  pub.status === "failed" ? "bg-red-400" :
-                  "bg-yellow-400 animate-pulse"
-                }`} />
-                <span className="text-[12px] text-white/60">
-                  {pub.status === "published" ? "Publicado" :
-                   pub.status === "failed" ? "Falhou" :
-                   pub.status === "uploading" ? "Enviando..." :
-                   "Agendado"}
-                </span>
+            <div key={pub.id} className="space-y-3">
+              <div className="flex items-center justify-between rounded-lg bg-white/[0.03] px-3 py-2">
+                <div className="flex items-center gap-2">
+                  <span className={`h-2 w-2 rounded-full ${
+                    pub.status === "published" ? "bg-green-400" :
+                    pub.status === "failed" ? "bg-red-400" :
+                    "bg-yellow-400 animate-pulse"
+                  }`} />
+                  <span className="text-[12px] text-white/60">
+                    {pub.status === "published" ? "Publicado" :
+                     pub.status === "failed" ? "Falhou" :
+                     pub.status === "uploading" ? "Enviando..." :
+                     "Agendado"}
+                  </span>
+                </div>
+                {pub.status === "failed" && pub.error && (
+                  <span className="max-w-[200px] truncate text-[10px] text-red-400/70" title={pub.error}>
+                    {pub.error}
+                  </span>
+                )}
               </div>
-              {pub.status === "failed" && pub.error && (
-                <span className="max-w-[200px] truncate text-[10px] text-red-400/70" title={pub.error}>
-                  {pub.error}
-                </span>
-              )}
+
+              {/* Insights da publicação */}
               {pub.status === "published" && pub.external_id && (
-                <a
-                  href={`https://www.instagram.com/reel/${pub.external_id}/`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[11px] text-[#c084fc] hover:underline"
-                >
-                  Ver no Instagram →
-                </a>
+                <InsightsPanel pubId={pub.id} />
               )}
             </div>
           ))}
@@ -1122,13 +1120,13 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
       {/* ── Header ──────────────────────────────────────────── */}
       <div>
         <Link
-          href="/dashboard"
+          href={project.workspace_id ? `/workspaces/${project.workspace_id}` : "/workspaces"}
           className="inline-flex items-center gap-1 text-[11px] font-medium text-white/30 transition-colors hover:text-white/50 sm:gap-1.5 sm:text-[12px]"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="15 18 9 12 15 6" />
           </svg>
-          Projetos
+          Voltar ao projeto
         </Link>
 
         <div className="mt-3 sm:mt-4">
@@ -1318,11 +1316,11 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
         </section>
       )}
 
-      {/* ── Instagram Publish ─────────────────────────────── */}
+      {/* ── Instagram Publish & Insights ─────────────────── */}
       {video && (
         <section className="space-y-2.5 sm:space-y-3">
           <h2 className="px-1 text-[10px] font-semibold uppercase tracking-widest text-white/25 sm:text-[11px]">
-            Publicar no Instagram
+            Instagram
           </h2>
           <InstagramPublishSection project={project} />
         </section>

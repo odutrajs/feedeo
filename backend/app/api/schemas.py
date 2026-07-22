@@ -299,3 +299,81 @@ class PublicationOut(BaseModel):
         if value.tzinfo is None:
             value = value.replace(tzinfo=timezone.utc)
         return value.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+# ── Instagram Insights ───────────────────────────────────────────────
+
+
+class MediaInsightsOut(BaseModel):
+    """Métricas de uma publicação individual no Instagram."""
+    media_id: str
+    likes: int = 0
+    comments: int = 0
+    shares: int = 0
+    saved: int = 0
+    reach: int = 0
+    views: int = 0
+    total_interactions: int = 0
+    reposts: int = 0
+    avg_watch_time_ms: int = 0
+    video_view_total_time_ms: int = 0
+    extra: dict = Field(default_factory=dict)
+
+
+class MediaInfoOut(BaseModel):
+    """Metadados básicos de uma mídia do Instagram."""
+    id: str
+    caption: str | None = None
+    media_type: str | None = None
+    media_product_type: str | None = None
+    permalink: str | None = None
+    thumbnail_url: str | None = None
+    timestamp: str | None = None
+    like_count: int | None = None
+    comments_count: int | None = None
+
+
+class PublicationInsightsOut(BaseModel):
+    """Insights completos de uma publicação (metadados + métricas)."""
+    publication_id: int
+    external_id: str
+    media_info: MediaInfoOut | None = None
+    insights: MediaInsightsOut
+
+
+class AccountInsightsOut(BaseModel):
+    """Métricas agregadas do perfil do Instagram."""
+    ig_user_id: str
+    period: str = "day"
+    reach: int = 0
+    views: int = 0
+    follower_count: int = 0
+    extra: dict = Field(default_factory=dict)
+
+
+class RecentMediaOut(BaseModel):
+    """Mídia listada do perfil com métricas rápidas."""
+    id: str
+    caption: str | None = None
+    media_type: str | None = None
+    media_product_type: str | None = None
+    permalink: str | None = None
+    thumbnail_url: str | None = None
+    timestamp: str | None = None
+    like_count: int | None = None
+    comments_count: int | None = None
+    insights: MediaInsightsOut | None = None
+
+
+class WorkspaceInsightsSummary(BaseModel):
+    """Resumo de insights de todas as publicações de um workspace."""
+    workspace_id: int
+    account: AccountInsightsOut | None = None
+    publications: list[PublicationInsightsOut] = []
+    total_views: int = 0
+    total_reach: int = 0
+    total_likes: int = 0
+    total_comments: int = 0
+    total_shares: int = 0
+    total_saved: int = 0
+    publication_count: int = 0
