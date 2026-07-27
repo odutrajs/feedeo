@@ -133,6 +133,23 @@ def _migrate_sqlite() -> None:
                 conn.execute(text("CREATE INDEX IF NOT EXISTS ix_publications_account_id ON publications (account_id)"))
 
 
+def _migrate_postgres_enums() -> None:
+    """Adiciona valores novos a enums nativos do Postgres (create_all não altera enums)."""
+    from sqlalchemy import text
+
+    with engine.begin() as conn:
+        conn.execute(
+            text("""
+            DO $$ BEGIN
+                ALTER TYPE projectmode ADD VALUE IF NOT EXISTS 'join';
+            EXCEPTION
+                WHEN undefined_object THEN NULL;
+                WHEN duplicate_object THEN NULL;
+            END $$;
+            """)
+        )
+
+
 def init_db() -> None:
     from app.db import models  # noqa: F401 (register models)
 
@@ -143,6 +160,8 @@ def init_db() -> None:
     Base.metadata.create_all(bind=engine)
     if settings.database_url.startswith("sqlite"):
         _migrate_sqlite()
+    elif settings.database_url.startswith("postgres"):
+        _migrate_postgres_enums()
     _backfill_library_once()
 
 

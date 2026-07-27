@@ -66,11 +66,20 @@ def get_publication_insights(
     if pub.social_post_id:
         is_reel = False
 
-    insights = publisher.get_media_insights(
-        credentials=account.credentials,
-        media_id=pub.external_id,
-        is_reel=is_reel,
-    )
+    try:
+        insights = publisher.get_media_insights(
+            credentials=account.credentials,
+            media_id=pub.external_id,
+            is_reel=is_reel,
+        )
+    except RuntimeError as e:
+        raise HTTPException(
+            403,
+            "Insights indisponíveis. Reconecte o Instagram e confirme a permissão "
+            "instagram_business_manage_insights no app da Meta. "
+            f"Detalhe: {e}",
+        ) from e
+
     media_info_raw = publisher.get_media_info(
         credentials=account.credentials,
         media_id=pub.external_id,
@@ -252,12 +261,12 @@ def get_workspace_insights(
 @router.get("/recent-media", response_model=list[RecentMediaOut])
 def get_recent_media(
     workspace_id: int = Query(...),
-    limit: int = Query(25, ge=1, le=50),
+    limit: int = Query(50, ge=1, le=200),
     include_insights: bool = Query(False),
     db: Session = Depends(get_db),
     user: User = Depends(get_subscribed_user),
 ):
-    """Lista mídias recentes do perfil do Instagram, com insights opcionais."""
+    """Lista mídias do perfil do Instagram (não só as criadas no app), com insights opcionais."""
     from app.modules.platforms.instagram import InstagramPublisher
 
     workspace = db.get(Workspace, workspace_id)
@@ -281,6 +290,7 @@ def get_recent_media(
             media_product_type=m.get("media_product_type"),
             permalink=m.get("permalink"),
             thumbnail_url=m.get("thumbnail_url"),
+            media_url=m.get("media_url"),
             timestamp=m.get("timestamp"),
             like_count=m.get("like_count"),
             comments_count=m.get("comments_count"),

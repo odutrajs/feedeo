@@ -82,7 +82,7 @@ const ICONS = {
 
 // ── Insights Grid ───────────────────────────────────────────────────
 
-function InsightsGrid({ insights, isReel }: { insights: MediaInsights; isReel: boolean }) {
+export function InsightsGrid({ insights, isReel }: { insights: MediaInsights; isReel: boolean }) {
   return (
     <div className="space-y-3 animate-scale-in">
       {/* Métricas principais — layout compacto que cabe em cards estreitos */}

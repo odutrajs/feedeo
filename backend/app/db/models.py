@@ -24,6 +24,7 @@ class ProjectMode(str, enum.Enum):
     generative = "generative"  # topic -> AI script -> AI images (fluxo original)
     creative = "creative"  # brief + mídia enviada -> anúncio (criativo)
     edit = "edit"  # vídeo bruto -> cortes/transições automáticos (edição mágica)
+    join = "join"  # N vídeos prontos -> concat com transição (juntar vídeos)
 
 
 class SourceStatus(str, enum.Enum):

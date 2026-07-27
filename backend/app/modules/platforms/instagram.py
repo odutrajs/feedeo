@@ -30,13 +30,13 @@ MAX_POLL_ATTEMPTS = 60
 
 REEL_METRICS = [
     "comments", "likes", "reach", "saved", "shares", "views",
-    "total_interactions", "reposts",
+    "total_interactions",
     "ig_reels_avg_watch_time", "ig_reels_video_view_total_time",
 ]
 
 POST_METRICS = [
     "comments", "likes", "reach", "saved", "shares", "views",
-    "total_interactions", "reposts",
+    "total_interactions",
 ]
 
 ACCOUNT_METRICS = ["reach", "views", "follower_count"]
@@ -168,6 +168,9 @@ class InstagramPublisher(Publisher):
             )
             _wait_until_ready(child_id, token)
             children.append(child_id)
+            # Evita rajada de downloads no túnel/CDN
+            if i < len(image_urls) - 1:
+                time.sleep(1.5)
 
         logger.info("Criando container CAROUSEL com %d itens", len(children))
         carousel_id = _create_container(
@@ -209,12 +212,11 @@ class InstagramPublisher(Publisher):
             timeout=30,
         )
 
-        result = MediaInsights(media_id=media_id)
-
         if resp.status_code != 200:
             logger.warning("Erro ao buscar insights de %s: %s", media_id, resp.text)
-            return result
+            raise RuntimeError(f"Insights indisponíveis ({resp.status_code}): {resp.text}")
 
+        result = MediaInsights(media_id=media_id)
         data = resp.json().get("data", [])
         for entry in data:
             name = entry.get("name", "")
@@ -322,23 +324,35 @@ class InstagramPublisher(Publisher):
         return result
 
     def list_recent_media(self, credentials: dict, limit: int = 25) -> list[dict]:
-        """Lista mídias recentes do perfil do Instagram."""
+        """Lista mídias do perfil do Instagram, paginando até o limite."""
         token = credentials["access_token"]
         ig_user_id = credentials["ig_user_id"]
-
-        resp = httpx.get(
-            f"{GRAPH_API}/{ig_user_id}/media",
-            params={
-                "fields": "id,caption,media_type,media_product_type,permalink,thumbnail_url,timestamp,like_count,comments_count",
-                "limit": limit,
-                "access_token": token,
-            },
-            timeout=30,
+        fields = (
+            "id,caption,media_type,media_product_type,permalink,"
+            "thumbnail_url,media_url,timestamp,like_count,comments_count"
         )
-        if resp.status_code != 200:
-            logger.warning("Erro ao listar mídias: %s", resp.text)
-            return []
-        return resp.json().get("data", [])
+        page_size = min(50, max(1, limit))
+        results: list[dict] = []
+        url: str | None = f"{GRAPH_API}/{ig_user_id}/media"
+        params: dict | None = {
+            "fields": fields,
+            "limit": page_size,
+            "access_token": token,
+        }
+
+        while url and len(results) < limit:
+            resp = httpx.get(url, params=params, timeout=30)
+            if resp.status_code != 200:
+                logger.warning("Erro ao listar mídias: %s", resp.text)
+                break
+            payload = resp.json()
+            batch = payload.get("data") or []
+            results.extend(batch)
+            next_url = (payload.get("paging") or {}).get("next")
+            url = next_url
+            params = None  # next já inclui query string
+
+        return results[:limit]
 
 
 def _extract_value(entry: dict) -> int:
@@ -361,17 +375,86 @@ def _build_caption(title: str, description: str, hashtags: list[str]) -> str:
     return "\n\n".join(parts)
 
 
-def _create_container(ig_user_id: str, token: str, data: dict) -> str:
-    resp = httpx.post(
-        f"{GRAPH_API}/{ig_user_id}/media",
-        data={**data, "access_token": token},
-        timeout=60,
+def _is_media_download_timeout(resp_text: str) -> bool:
+    """Detecta timeout de download de mídia pelo Instagram (subcode 2207003)."""
+    t = resp_text.lower()
+    return (
+        "2207003" in resp_text
+        or '"code":-2' in resp_text.replace(" ", "")
+        or "tempo limite" in t
+        or ("timeout" in t and "download" in t)
+        or "demora muito" in t
     )
-    if resp.status_code != 200:
-        raise RuntimeError(f"Erro ao criar container: {resp.text}")
-    container_id = resp.json()["id"]
-    logger.info("Container criado: %s", container_id)
-    return container_id
+
+
+def _warm_media_url(url: str) -> None:
+    """Pré-aquece a URL pública para o Instagram baixar mais rápido."""
+    try:
+        head = httpx.head(url, timeout=20, follow_redirects=True)
+        logger.info(
+            "Warm HEAD %s → %s (type=%s len=%s)",
+            url,
+            head.status_code,
+            head.headers.get("content-type"),
+            head.headers.get("content-length"),
+        )
+        # Lê os primeiros bytes (ajuda cache no edge do túnel/CDN)
+        with httpx.stream("GET", url, timeout=30, follow_redirects=True) as resp:
+            for i, _chunk in enumerate(resp.iter_bytes(chunk_size=64 * 1024)):
+                if i >= 1:
+                    break
+    except httpx.RequestError as e:
+        logger.warning("Falha ao aquecer URL %s: %s", url, e)
+
+
+def _create_container(
+    ig_user_id: str,
+    token: str,
+    data: dict,
+    *,
+    retries: int = 3,
+) -> str:
+    media_url = data.get("image_url") or data.get("video_url")
+    if media_url:
+        _warm_media_url(str(media_url))
+
+    last_error = ""
+    for attempt in range(1, retries + 1):
+        resp = httpx.post(
+            f"{GRAPH_API}/{ig_user_id}/media",
+            data={**data, "access_token": token},
+            timeout=120,
+        )
+        if resp.status_code == 200:
+            container_id = resp.json()["id"]
+            logger.info("Container criado: %s", container_id)
+            return container_id
+
+        last_error = resp.text
+        if _is_media_download_timeout(last_error) and attempt < retries:
+            wait = attempt * 5
+            logger.warning(
+                "Timeout no download da mídia (tentativa %d/%d). Nova tentativa em %ds. url=%s",
+                attempt,
+                retries,
+                wait,
+                media_url,
+            )
+            if media_url:
+                _warm_media_url(str(media_url))
+            time.sleep(wait)
+            continue
+
+        break
+
+    if _is_media_download_timeout(last_error):
+        raise RuntimeError(
+            "O Instagram não conseguiu baixar a mídia a tempo (timeout). "
+            "Isso costuma acontecer com túnel Cloudflare instável. "
+            "Tente publicar de novo ou use um PUBLIC_BASE_URL mais estável (CDN/S3). "
+            f"Detalhe: {last_error}"
+        )
+    raise RuntimeError(f"Erro ao criar container: {last_error}")
 
 
 def _wait_until_ready(container_id: str, token: str) -> None:

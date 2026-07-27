@@ -41,6 +41,11 @@ def build_stages(mode: ProjectMode = ProjectMode.generative) -> list[Stage]:
             EditAnalysisStage(),
             EditRenderStage(),
         ]
+    if mode == ProjectMode.join:
+        from app.modules.editing.stage import JoinRenderStage
+
+        # Juntar vídeos: N partes prontas -> normaliza + transição -> export
+        return [JoinRenderStage()]
     if mode == ProjectMode.creative:
         # Criativo: copy de anúncio + seleção dos melhores trechos enviados
         return [
@@ -77,10 +82,15 @@ STAGE_ORDER = [
 ]
 
 EDIT_STAGE_ORDER = ["edit_analysis", "edit_render"]
+JOIN_STAGE_ORDER = ["join_render"]
 
 
 def stage_order_for(mode: ProjectMode) -> list[str]:
-    return EDIT_STAGE_ORDER if mode == ProjectMode.edit else STAGE_ORDER
+    if mode == ProjectMode.edit:
+        return EDIT_STAGE_ORDER
+    if mode == ProjectMode.join:
+        return JOIN_STAGE_ORDER
+    return STAGE_ORDER
 
 
 def latest_stage_run(db: Session, project_id: int, stage: str) -> StageRun | None:

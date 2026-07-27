@@ -120,11 +120,14 @@ def attach_from_library(
     uploads_dir = settings.project_dir(project.id) / "sources" / "uploads"
     uploads_dir.mkdir(parents=True, exist_ok=True)
 
+    video_only = project.mode.value in ("edit", "join")
     created: list[SourceAsset] = []
     for lib_id in body.library_ids:
         lib = db.get(LibraryAsset, lib_id)
         if lib is None or lib.user_id != user.id:
             raise HTTPException(404, f"Item {lib_id} não encontrado na biblioteca")
+        if video_only and lib.kind != "video":
+            raise HTTPException(400, "Este modo aceita apenas vídeos da biblioteca")
 
         src_file = settings.storage_dir / lib.path
         if not src_file.is_file():

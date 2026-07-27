@@ -51,6 +51,10 @@ def create_project(
     if mode == ProjectMode.edit and "review_stages" not in config:
         # Pausa após a análise para o usuário revisar os cortes antes do render
         config["review_stages"] = ["edit_analysis"]
+    if mode == ProjectMode.join:
+        config.setdefault("transition", "fade")
+        config.setdefault("aspect", "9:16")
+        config.pop("review_stages", None)
     workspace_id = None
     if body.workspace_id is not None:
         from app.db.models import Workspace
@@ -158,6 +162,22 @@ def run_project(
     project = get_project_or_404(db, project_id, user)
     if body.from_stage and body.from_stage not in stage_order_for(project.mode):
         raise HTTPException(400, f"Etapa desconhecida: {body.from_stage}")
+    if project.mode == ProjectMode.join:
+        from app.db.models import SourceAsset, SourceStatus
+
+        videos = (
+            db.query(SourceAsset)
+            .filter(
+                SourceAsset.project_id == project.id,
+                SourceAsset.kind == "video",
+                SourceAsset.status != SourceStatus.failed,
+            )
+            .count()
+        )
+        if videos < 2:
+            raise HTTPException(
+                400, "Envie pelo menos 2 vídeos para juntar com transição"
+            )
     enqueue_pipeline(db, project, from_stage=body.from_stage)
     return project
 

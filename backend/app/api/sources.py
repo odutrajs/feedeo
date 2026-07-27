@@ -51,13 +51,16 @@ async def upload_sources(
     uploads_dir = settings.project_dir(project.id) / "sources" / "uploads"
     uploads_dir.mkdir(parents=True, exist_ok=True)
 
+    video_only = project.mode.value in ("edit", "join")
     created: list[SourceAsset] = []
     for upload in files:
         ext = Path(upload.filename or "").suffix.lower()
         if ext in VIDEO_EXTENSIONS:
             kind = "video"
-        elif ext in IMAGE_EXTENSIONS:
+        elif ext in IMAGE_EXTENSIONS and not video_only:
             kind = "image"
+        elif ext in IMAGE_EXTENSIONS and video_only:
+            raise HTTPException(400, "Este modo aceita apenas vídeos")
         else:
             raise HTTPException(400, f"Formato não suportado: {upload.filename}")
 
@@ -112,8 +115,8 @@ async def upload_sources(
 
 
 def _analysis_task(project: Project):
-    """Modo edit não precisa da análise de visão/segmentos: só probe de metadados."""
-    if project.mode.value == "edit":
+    """Modos edit/join não precisam da análise de visão/segmentos: só probe de metadados."""
+    if project.mode.value in ("edit", "join"):
         from app.modules.editing.analysis import probe_source
 
         return probe_source

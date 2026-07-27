@@ -547,6 +547,161 @@ function SourcesSection({
   );
 }
 
+function JoinSourcesSection({
+  project,
+  onChanged,
+}: {
+  project: ProjectDetail;
+  onChanged: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [libraryOpen, setLibraryOpen] = useState(false);
+
+  const uploadMutation = useMutation({
+    mutationFn: async (files: File[]) => {
+      setUploading(true);
+      try {
+        await api.uploadSources(project.id, files);
+      } finally {
+        setUploading(false);
+      }
+    },
+    onSuccess: () => {
+      onChanged();
+      queryClient.invalidateQueries({ queryKey: ["library"] });
+    },
+  });
+
+  const attachMutation = useMutation({
+    mutationFn: (ids: number[]) => api.attachFromLibrary(project.id, ids),
+    onSuccess: onChanged,
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (sourceId: number) => api.deleteSource(project.id, sourceId),
+    onSuccess: onChanged,
+  });
+
+  const videos = [...project.sources]
+    .filter((s) => s.kind === "video")
+    .sort((a, b) => a.id - b.id);
+  const processing = videos.some(
+    (s) => s.status === "uploaded" || s.status === "processing",
+  );
+  const canEdit = project.status === "draft";
+
+  return (
+    <section className="space-y-2.5 sm:space-y-3">
+      <div className="flex items-center justify-between px-1">
+        <div className="flex items-center gap-2">
+          <h2 className="text-[10px] font-semibold uppercase tracking-widest text-white/25 sm:text-[11px]">
+            Partes do vídeo
+          </h2>
+          <span className="rounded-md bg-white/[0.06] px-1.5 py-0.5 text-[9px] font-medium text-white/30">
+            {videos.length}
+          </span>
+          {processing && (
+            <span className="flex items-center gap-1.5 rounded-md bg-[--orange-soft] px-2 py-0.5 text-[9px] font-medium text-[#ff9f0a]">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#ff9f0a] animate-shimmer" />
+              Processando...
+            </span>
+          )}
+        </div>
+        {canEdit && (
+          <>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept="video/*"
+              onChange={(e) => {
+                if (e.target.files?.length) uploadMutation.mutate(Array.from(e.target.files));
+                e.target.value = "";
+              }}
+              className="hidden"
+            />
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setLibraryOpen(true)}
+                disabled={attachMutation.isPending}
+                className="text-[10px] font-medium text-white/40 transition-colors hover:text-white/70 disabled:opacity-40 sm:text-[11px]"
+              >
+                Biblioteca
+              </button>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="text-[10px] font-medium text-[#c084fc] transition-colors hover:text-[#d8b4fe] disabled:opacity-40 sm:text-[11px]"
+              >
+                {uploading ? "Enviando..." : "+ Adicionar vídeo"}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+
+      {videos.length === 0 ? (
+        <div className="glass flex flex-col items-center rounded-xl py-8 text-center sm:rounded-2xl">
+          <p className="text-[12px] text-white/30">Nenhum vídeo enviado ainda.</p>
+          <p className="mt-1 text-[11px] text-white/20">
+            Envie pelo menos 2 partes, na ordem do vídeo final.
+          </p>
+        </div>
+      ) : (
+        <div className="glass divide-y divide-white/[0.04] rounded-xl sm:rounded-2xl">
+          {videos.map((source, index) => (
+            <div key={source.id} className="flex items-center justify-between gap-3 px-4 py-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-white/[0.06] text-[11px] font-semibold text-white/40">
+                  {index + 1}
+                </span>
+                <span className="truncate text-[12px] text-white/60">{source.filename}</span>
+              </div>
+              <div className="flex shrink-0 items-center gap-3">
+                <span className="text-[11px] text-white/25">
+                  {source.status === "ready"
+                    ? `${(source.duration ?? 0).toFixed(0)}s`
+                    : source.status === "failed"
+                      ? `falhou: ${source.error?.slice(0, 40) ?? ""}`
+                      : "processando..."}
+                </span>
+                {canEdit && (
+                  <button
+                    type="button"
+                    onClick={() => deleteMutation.mutate(source.id)}
+                    className="text-[10px] text-white/20 transition-colors hover:text-[#ff453a]"
+                  >
+                    Remover
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {canEdit && videos.length > 0 && videos.length < 2 && (
+        <p className="px-1 text-[11px] text-[#ff9f0a]/80">
+          Faltam {2 - videos.length} vídeo(s) para poder juntar.
+        </p>
+      )}
+
+      <LibraryPickerModal
+        open={libraryOpen}
+        onClose={() => setLibraryOpen(false)}
+        onConfirm={async (ids) => {
+          await attachMutation.mutateAsync(ids);
+        }}
+        confirmLabel="Adicionar ao projeto"
+      />
+    </section>
+  );
+}
+
 // ── Cortes automáticos (modo edit) ──────────────────────────────────
 
 const CUT_REASONS: Record<string, { label: string; color: string; bar: string }> = {
@@ -1108,11 +1263,13 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
   }
   const isCreative = project.mode === "creative";
   const isEdit = project.mode === "edit";
+  const isJoin = project.mode === "join";
   const order = stageOrder(project.mode);
   const labels = stageLabels(project.mode);
   const sourcesProcessing = (project.sources ?? []).some(
     (s) => s.status === "uploaded" || s.status === "processing",
   );
+  const joinVideoCount = (project.sources ?? []).filter((s) => s.kind === "video").length;
   const hasRun = stages.length > 0;
 
   return (
@@ -1159,10 +1316,14 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
                 </button>
               </>
             )}
-            {(isCreative || isEdit) && project.status === "draft" && (
+            {(isCreative || isEdit || isJoin) && project.status === "draft" && (
               <button
                 onClick={() => runMutation.mutate(undefined)}
-                disabled={runMutation.isPending || sourcesProcessing}
+                disabled={
+                  runMutation.isPending ||
+                  sourcesProcessing ||
+                  (isJoin && joinVideoCount < 2)
+                }
                 className="btn-gradient w-full rounded-xl px-5 py-2.5 text-[13px] font-semibold text-white shadow-lg shadow-[#a855f7]/20 disabled:opacity-30 disabled:shadow-none sm:w-auto sm:px-6"
               >
                 {sourcesProcessing
@@ -1171,12 +1332,14 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
                     ? "Iniciando..."
                     : isEdit
                       ? "Analisar e cortar"
-                      : "Gerar criativo"}
+                      : isJoin
+                        ? "Juntar vídeos"
+                        : "Gerar criativo"}
               </button>
             )}
             {!isActive(project.status) &&
               project.status !== "awaiting_review" &&
-              !((isCreative || isEdit) && project.status === "draft") && (
+              !((isCreative || isEdit || isJoin) && project.status === "draft") && (
               <button
                 onClick={() => runMutation.mutate(failedRun?.stage)}
                 disabled={runMutation.isPending}
@@ -1225,6 +1388,9 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
 
       {/* ── Mídia enviada (modo criativo) ───────────────────── */}
       {isCreative && <SourcesSection project={project} onChanged={invalidateProject} />}
+
+      {/* ── Partes para juntar (modo join) ───────────────────── */}
+      {isJoin && <JoinSourcesSection project={project} onChanged={invalidateProject} />}
 
       {/* ── Cortes sugeridos (modo edit) ────────────────────── */}
       {isEdit && <EditCutsSection project={project} onChanged={invalidateProject} />}

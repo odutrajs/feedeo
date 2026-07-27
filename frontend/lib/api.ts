@@ -74,7 +74,7 @@ export interface Project {
   id: number;
   title: string | null;
   topic: string;
-  mode: "generative" | "creative" | "edit";
+  mode: "generative" | "creative" | "edit" | "join";
   language: string;
   status: string;
   config: Record<string, unknown>;
@@ -287,16 +287,24 @@ export const EDIT_STAGE_LABELS: Record<string, string> = {
   edit_render: "Render final",
 };
 
+export const JOIN_STAGE_LABELS: Record<string, string> = {
+  join_render: "Montagem",
+};
+
 export function stageLabels(mode: Project["mode"]): Record<string, string> {
   if (mode === "edit") return EDIT_STAGE_LABELS;
+  if (mode === "join") return JOIN_STAGE_LABELS;
   return mode === "creative" ? CREATIVE_STAGE_LABELS : STAGE_LABELS;
 }
 
 export const STAGE_ORDER = Object.keys(STAGE_LABELS);
 export const EDIT_STAGE_ORDER = Object.keys(EDIT_STAGE_LABELS);
+export const JOIN_STAGE_ORDER = Object.keys(JOIN_STAGE_LABELS);
 
 export function stageOrder(mode: Project["mode"]): string[] {
-  return mode === "edit" ? EDIT_STAGE_ORDER : STAGE_ORDER;
+  if (mode === "edit") return EDIT_STAGE_ORDER;
+  if (mode === "join") return JOIN_STAGE_ORDER;
+  return STAGE_ORDER;
 }
 
 export const LANGUAGES: { value: string; label: string }[] = [
@@ -342,7 +350,7 @@ export const api = {
   createProject: (body: {
     topic: string;
     title?: string;
-    mode?: "generative" | "creative" | "edit";
+    mode?: "generative" | "creative" | "edit" | "join";
     language?: string;
     config?: Record<string, unknown>;
     autostart?: boolean;
@@ -537,7 +545,7 @@ export const api = {
     http.get<RecentMedia[]>(`/api/insights/recent-media`, {
       params: {
         workspace_id: params.workspaceId,
-        limit: params.limit ?? 25,
+        limit: params.limit ?? 50,
         include_insights: params.includeInsights ?? false,
       },
     }).then((r) => r.data),
@@ -608,6 +616,7 @@ export interface RecentMedia {
   media_product_type: string | null;
   permalink: string | null;
   thumbnail_url: string | null;
+  media_url?: string | null;
   timestamp: string | null;
   like_count: number | null;
   comments_count: number | null;

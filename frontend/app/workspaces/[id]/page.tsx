@@ -4,8 +4,8 @@ import { use, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, BrandIdentity, mediaUrl, Project, SocialPost, WorkspaceDetail, instagramConnectUrl, formatScheduledAt, localDateTimeToISO, toLocalDateValue, toLocalTimeValue, shouldPollPublications } from "@/lib/api";
-import InsightsPanel from "@/components/InsightsPanel";
+import { api, BrandIdentity, mediaUrl, Project, SocialPost, WorkspaceDetail, instagramConnectUrl, formatScheduledAt, localDateTimeToISO, toLocalDateValue, toLocalTimeValue, shouldPollPublications, RecentMedia } from "@/lib/api";
+import InsightsPanel, { InsightsGrid, formatNumber } from "@/components/InsightsPanel";
 
 // ── Constants ────────────────────────────────────────────────────────
 
@@ -22,9 +22,10 @@ const MODE_TAGS: Record<string, string> = {
   generative: "Vídeo rápido",
   creative: "Criativo",
   edit: "Edição",
+  join: "Juntar",
 };
 
-type TabId = "videos" | "posts" | "calendar" | "settings";
+type TabId = "videos" | "posts" | "calendar" | "insights" | "settings";
 
 const TABS: { id: TabId; label: string; short: string; icon: React.ReactNode }[] = [
   {
@@ -60,6 +61,16 @@ const TABS: { id: TabId; label: string; short: string; icon: React.ReactNode }[]
         <line x1="16" y1="2" x2="16" y2="6" />
         <line x1="8" y1="2" x2="8" y2="6" />
         <line x1="3" y1="10" x2="21" y2="10" />
+      </svg>
+    ),
+  },
+  {
+    id: "insights",
+    label: "Insights",
+    short: "Insights",
+    icon: (
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M18 20V10M12 20V4M6 20v-6" />
       </svg>
     ),
   },
@@ -663,6 +674,273 @@ function CalendarTab({ workspaceId }: { workspaceId: number }) {
   );
 }
 
+// ── Tab: Insights da conta ───────────────────────────────────────────
+
+function mediaTypeLabel(item: RecentMedia): string {
+  const product = (item.media_product_type || "").toUpperCase();
+  if (product === "REELS") return "Reel";
+  if (product === "CAROUSEL_ALBUM" || item.media_type === "CAROUSEL_ALBUM") return "Carrossel";
+  if (item.media_type === "VIDEO") return "Vídeo";
+  return "Post";
+}
+
+function AccountInsightsTab({
+  workspaceId,
+  igConnected,
+}: {
+  workspaceId: number;
+  igConnected: boolean;
+}) {
+  const [filter, setFilter] = useState<"all" | "REELS" | "FEED">("all");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const { data: media, isLoading, error, refetch, isFetching } = useQuery({
+    queryKey: ["account_recent_media", workspaceId],
+    queryFn: () =>
+      api.getRecentMedia({
+        workspaceId,
+        limit: 100,
+        includeInsights: true,
+      }),
+    enabled: igConnected,
+    staleTime: 5 * 60_000,
+  });
+
+  if (!igConnected) {
+    return (
+      <div className="glass rounded-2xl p-8 text-center sm:rounded-3xl">
+        <p className="text-[13px] text-white/50">Conecte o Instagram em Configurações para ver as postagens da conta.</p>
+        <a href={instagramConnectUrl(workspaceId)} className="mt-4 inline-flex btn-gradient rounded-lg px-4 py-2 text-[12px] font-semibold text-white">
+          Conectar Instagram
+        </a>
+      </div>
+    );
+  }
+
+  const items = (media ?? []).filter((m) => {
+    if (filter === "all") return true;
+    const product = (m.media_product_type || "").toUpperCase();
+    if (filter === "REELS") return product === "REELS";
+    return product !== "REELS";
+  });
+
+  const hasAnyInsights = (media ?? []).some((m) => m.insights != null);
+  const insightsBlocked = (media?.length ?? 0) > 0 && !hasAnyInsights;
+
+  const totals = (media ?? []).reduce(
+    (acc, m) => {
+      if (m.insights) {
+        acc.views += m.insights.views || 0;
+        acc.reach += m.insights.reach || 0;
+        acc.likes += m.insights.likes || m.like_count || 0;
+      } else {
+        acc.likes += m.like_count || 0;
+      }
+      return acc;
+    },
+    { views: 0, reach: 0, likes: 0 },
+  );
+
+  return (
+    <div className="space-y-4">
+      <div className="glass rounded-2xl p-5 sm:rounded-3xl sm:p-6 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-[14px] font-semibold text-white/80">Postagens da conta</h2>
+            <p className="text-[11px] text-white/35">
+              Todas as mídias do Instagram conectado — não só as criadas aqui.
+            </p>
+          </div>
+          <button
+            onClick={() => refetch()}
+            disabled={isFetching}
+            className="rounded-lg border border-white/[0.08] px-3 py-1.5 text-[11px] font-medium text-white/50 transition-colors hover:bg-white/[0.04] hover:text-white/80 disabled:opacity-40"
+          >
+            {isFetching ? "Atualizando..." : "Atualizar"}
+          </button>
+        </div>
+
+        {insightsBlocked && (
+          <div className="rounded-xl border border-[#ff9f0a]/25 bg-[#ff9f0a]/10 px-3.5 py-3 space-y-2">
+            <p className="text-[12px] font-medium text-[#ff9f0a]">
+              Alcance e views indisponíveis
+            </p>
+            <p className="text-[11px] leading-relaxed text-white/45">
+              O app Meta não tem permissão de insights neste token. Em{" "}
+              <span className="text-white/60">developers.facebook.com</span>, ative Advanced Access para{" "}
+              <code className="text-[10px] text-white/55">instagram_business_manage_insights</code>
+              , depois desconecte e reconecte o Instagram.
+            </p>
+            <a
+              href={instagramConnectUrl(workspaceId)}
+              className="inline-flex text-[11px] font-semibold text-[#ffb340] hover:underline"
+            >
+              Reconectar Instagram →
+            </a>
+          </div>
+        )}
+
+        {(media?.length ?? 0) > 0 && (
+          <div className="grid grid-cols-3 gap-2">
+            <div className="rounded-xl bg-white/[0.03] px-3 py-2.5">
+              <p className="text-[10px] uppercase tracking-wide text-white/30">Views</p>
+              <p className="text-[16px] font-semibold tabular-nums text-[#64d2ff]">
+                {hasAnyInsights ? formatNumber(totals.views) : "—"}
+              </p>
+            </div>
+            <div className="rounded-xl bg-white/[0.03] px-3 py-2.5">
+              <p className="text-[10px] uppercase tracking-wide text-white/30">Alcance</p>
+              <p className="text-[16px] font-semibold tabular-nums text-[#30d158]">
+                {hasAnyInsights ? formatNumber(totals.reach) : "—"}
+              </p>
+            </div>
+            <div className="rounded-xl bg-white/[0.03] px-3 py-2.5">
+              <p className="text-[10px] uppercase tracking-wide text-white/30">Curtidas</p>
+              <p className="text-[16px] font-semibold tabular-nums text-[#ff375f]">{formatNumber(totals.likes)}</p>
+            </div>
+          </div>
+        )}
+
+        <div className="flex gap-1 rounded-lg bg-white/[0.03] p-1">
+          {([
+            { id: "all" as const, label: "Tudo" },
+            { id: "REELS" as const, label: "Reels" },
+            { id: "FEED" as const, label: "Feed" },
+          ]).map((f) => (
+            <button
+              key={f.id}
+              onClick={() => setFilter(f.id)}
+              className={`flex-1 rounded-md px-3 py-1.5 text-[11px] font-semibold transition-all ${
+                filter === f.id
+                  ? "bg-white/[0.1] text-white"
+                  : "text-white/35 hover:text-white/60"
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {isLoading && (
+        <div className="flex justify-center py-12">
+          <svg className="h-6 w-6 animate-spin text-white/30" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" className="opacity-25" />
+            <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+          </svg>
+        </div>
+      )}
+
+      {error && (
+        <p className="rounded-xl bg-[--red-soft] px-4 py-3 text-[13px] text-[#ff453a]">
+          {error instanceof Error ? error.message : "Erro ao carregar mídias da conta"}
+        </p>
+      )}
+
+      {!isLoading && !error && items.length === 0 && (
+        <div className="glass rounded-2xl p-8 text-center sm:rounded-3xl">
+          <p className="text-[13px] text-white/40">Nenhuma postagem encontrada nesta conta.</p>
+        </div>
+      )}
+
+      <div className="space-y-3">
+        {items.map((item) => {
+          const thumb = item.thumbnail_url || item.media_url;
+          const isReel = (item.media_product_type || "").toUpperCase() === "REELS";
+          const isExpanded = expandedId === item.id;
+          const dateLabel = item.timestamp
+            ? new Date(item.timestamp).toLocaleDateString("pt-BR", {
+                day: "2-digit",
+                month: "short",
+                year: "numeric",
+              })
+            : "";
+
+          return (
+            <div key={item.id} className="glass overflow-hidden rounded-2xl sm:rounded-3xl">
+              <button
+                onClick={() => setExpandedId(isExpanded ? null : item.id)}
+                className="flex w-full items-start gap-3 p-3 text-left transition-colors hover:bg-white/[0.02] sm:p-4"
+              >
+                <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-white/[0.04] sm:h-20 sm:w-20">
+                  {thumb ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={thumb} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-white/20">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <rect x="3" y="3" width="18" height="18" rx="2" />
+                      </svg>
+                    </div>
+                  )}
+                </div>
+                <div className="min-w-0 flex-1 space-y-1.5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-[10px] font-medium text-white/50">
+                      {mediaTypeLabel(item)}
+                    </span>
+                    {dateLabel && <span className="text-[10px] text-white/30">{dateLabel}</span>}
+                  </div>
+                  <p className="line-clamp-2 text-[12px] leading-snug text-white/65">
+                    {item.caption || "Sem legenda"}
+                  </p>
+                  <div className="flex flex-wrap gap-3 text-[11px] text-white/40">
+                    {item.insights ? (
+                      <>
+                        <span>{formatNumber(item.insights.views)} views</span>
+                        <span>{formatNumber(item.insights.reach)} alcance</span>
+                        <span>{formatNumber(item.insights.likes || item.like_count || 0)} curtidas</span>
+                      </>
+                    ) : (
+                      <>
+                        {item.like_count != null && <span>{formatNumber(item.like_count)} curtidas</span>}
+                        {item.comments_count != null && <span>{formatNumber(item.comments_count)} coment.</span>}
+                      </>
+                    )}
+                  </div>
+                </div>
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  className={`mt-1 shrink-0 text-white/25 transition-transform ${isExpanded ? "rotate-180" : ""}`}
+                >
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+
+              {isExpanded && (
+                <div className="space-y-3 border-t border-white/[0.06] px-3 pb-4 pt-3 sm:px-4">
+                  {item.insights ? (
+                    <InsightsGrid insights={item.insights} isReel={isReel} />
+                  ) : (
+                    <p className="text-[11px] text-white/30">
+                      Insights detalhados ainda não disponíveis para esta mídia.
+                    </p>
+                  )}
+                  {item.permalink && (
+                    <a
+                      href={item.permalink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex text-[11px] text-[#c084fc] hover:text-[#d8b4fe]"
+                    >
+                      Abrir no Instagram →
+                    </a>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ── Tab: Configurações ───────────────────────────────────────────────
 
 const SWATCHES = ["#a855f7", "#ec4899", "#12b76a", "#0ea5e9", "#f59e0b", "#ef4444", "#111827", "#f8fafc"];
@@ -996,6 +1274,7 @@ export default function WorkspacePage({ params }: { params: Promise<{ id: string
       {activeTab === "videos" && <VideosTab workspace={workspace} />}
       {activeTab === "posts" && <PostsTab workspace={workspace} igConnected={igConnected} />}
       {activeTab === "calendar" && <CalendarTab workspaceId={workspaceId} />}
+      {activeTab === "insights" && <AccountInsightsTab workspaceId={workspaceId} igConnected={igConnected} />}
       {activeTab === "settings" && <SettingsTab workspace={workspace} />}
     </div>
   );

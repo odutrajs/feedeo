@@ -17,6 +17,7 @@ import {
 const MODE_TAGS: Record<string, string> = {
   creative: "Criativo · ",
   edit: "Edição · ",
+  join: "Juntar · ",
 };
 import { LibraryPickerModal, LibrarySection } from "@/components/Library";
 
@@ -96,7 +97,7 @@ function Dashboard() {
   const searchParams = useSearchParams();
   const workspaceId = Number(searchParams.get("workspace")) || null;
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [mode, setMode] = useState<"generative" | "creative" | "edit">("generative");
+  const [mode, setMode] = useState<"generative" | "creative" | "edit" | "join">("generative");
   const [topic, setTopic] = useState("");
   const [style, setStyle] = useState("");
   const [editStyle, setEditStyle] = useState("vlog");
@@ -109,6 +110,17 @@ function Dashboard() {
   const [libraryIds, setLibraryIds] = useState<number[]>([]);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
+
+  function selectMode(next: "generative" | "creative" | "edit" | "join") {
+    setMode(next);
+    if (next === "join") {
+      setAspect("9:16");
+      setTransition("fade");
+    } else if (next === "edit") {
+      setAspect("original");
+      setTransition("auto");
+    }
+  }
 
   // Sem workspace vinculado, redireciona para projetos
   useEffect(() => {
@@ -145,23 +157,37 @@ function Dashboard() {
   const { data: editTransitions = [] } = useQuery({
     queryKey: ["edit-transitions"],
     queryFn: api.listEditTransitions,
-    enabled: mode === "edit",
+    enabled: mode === "edit" || mode === "join",
     staleTime: Infinity,
   });
+
+  const joinTransitions = editTransitions.filter((t) => t.id !== "auto");
 
   const createMutation = useMutation({
     mutationFn: async () => {
       const config: Record<string, unknown> = {};
       if (style.trim()) config.style_preset = style.trim();
-      if (mode !== "edit" && review) config.review_stages = ["script", "images"];
+      if (mode !== "edit" && mode !== "join" && review) {
+        config.review_stages = ["script", "images"];
+      }
       if (mode === "edit") {
         config.edit_style = editStyle;
         config.aspect = aspect;
         config.audio_enhance = audioEnhance;
         config.transition = transition;
       }
+      if (mode === "join") {
+        config.transition = transition;
+        config.aspect = aspect;
+      }
+      const defaultTopic =
+        mode === "join"
+          ? "Juntar vídeos com transição"
+          : mode === "edit"
+            ? "Edição automática de vídeo bruto"
+            : topic.trim();
       const project = await api.createProject({
-        topic: topic.trim() || "Edição automática de vídeo bruto",
+        topic: topic.trim() || defaultTopic,
         mode,
         language,
         config,
@@ -195,6 +221,8 @@ function Dashboard() {
     event.preventDefault();
     if (mode === "edit") {
       if (files.length === 0 && libraryIds.length === 0) return;
+    } else if (mode === "join") {
+      if (files.length + libraryIds.length < 2) return;
     } else if (!topic.trim()) {
       return;
     }
@@ -230,14 +258,18 @@ function Dashboard() {
                 ? "Novo vídeo"
                 : mode === "creative"
                   ? "Novo criativo"
-                  : "Edição mágica"}
+                  : mode === "join"
+                    ? "Juntar vídeos"
+                    : "Edição mágica"}
             </h1>
             <p className="text-[12px] text-white/40 sm:text-[13px]">
               {mode === "generative"
                 ? "Descreva o tema e a IA cria tudo automaticamente."
                 : mode === "creative"
                   ? "Envie seus vídeos/fotos, descreva o produto e a IA monta o anúncio."
-                  : "Envie o vídeo bruto e a IA corta erros, silêncios e retakes sozinha."}
+                  : mode === "join"
+                    ? "Envie as partes prontas, escolha a transição e a ferramenta monta o vídeo final."
+                    : "Envie o vídeo bruto e a IA corta erros, silêncios e retakes sozinha."}
             </p>
           </div>
         </div>
@@ -260,19 +292,20 @@ function Dashboard() {
         )}
 
         {/* Mode selector */}
-        <div className="mt-4 flex gap-1.5 rounded-xl bg-white/[0.04] p-1 sm:w-fit">
+        <div className="mt-4 flex flex-wrap gap-1.5 rounded-xl bg-white/[0.04] p-1 sm:w-fit">
           {(
             [
               { id: "generative", label: "Vídeo rápido", hint: "só com o tema" },
               { id: "creative", label: "Criativo (anúncio)", hint: "com sua mídia" },
               { id: "edit", label: "Edição mágica", hint: "vídeo bruto" },
+              { id: "join", label: "Juntar vídeos", hint: "partes + transição" },
             ] as const
           ).map((m) => (
             <button
               key={m.id}
               type="button"
-              onClick={() => setMode(m.id)}
-              className={`flex-1 rounded-lg px-4 py-2 text-[12px] font-semibold transition-all sm:flex-none sm:text-[13px] ${
+              onClick={() => selectMode(m.id)}
+              className={`flex-1 rounded-lg px-3 py-2 text-[12px] font-semibold transition-all sm:flex-none sm:px-4 sm:text-[13px] ${
                 mode === m.id
                   ? "bg-gradient-to-br from-[#a855f7] to-[#ec4899] text-white shadow-lg shadow-[#a855f7]/20"
                   : "text-white/40 hover:text-white/70"
@@ -295,7 +328,9 @@ function Dashboard() {
                 ? "Ex.: 5 curiosidades sobre o Império Romano que quase ninguém conhece"
                 : mode === "creative"
                   ? "Brief do criativo — produto, público, oferta e dor que ele resolve. Ex.: Tênis de corrida X-Run, para corredores amadores; dor: joelho ao correr; oferta: 20% off no site."
-                  : "Título do projeto (opcional). Dica de gravação: errou? Fale \"corta\" e repita a frase. Para descartar um trecho inteiro, fale \"corta\" no início e \"retoma\" no fim."
+                  : mode === "join"
+                    ? "Título do projeto (opcional). Ex.: Criativo produto X — versão final"
+                    : "Título do projeto (opcional). Dica de gravação: errou? Fale \"corta\" e repita a frase. Para descartar um trecho inteiro, fale \"corta\" no início e \"retoma\" no fim."
             }
             rows={3}
             className="w-full resize-none rounded-xl border border-white/[0.06] bg-white/[0.03] p-3.5 text-[14px] leading-relaxed text-white/90 placeholder:text-white/20 transition-all duration-300 focus:border-[#a855f7]/40 focus:bg-white/[0.05] focus:shadow-[0_0_0_4px_rgba(168,85,247,0.08)] sm:rounded-2xl sm:p-4"
@@ -445,13 +480,91 @@ function Dashboard() {
             </div>
           )}
 
-          {(mode === "creative" || mode === "edit") && (
+          {mode === "join" && (
+            <div className="space-y-4">
+              <div>
+                <p className="mb-1.5 px-0.5 text-[10px] font-semibold uppercase tracking-widest text-white/25">
+                  Formato de saída
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {EDIT_ASPECTS.map((a) => (
+                    <button
+                      key={a.id}
+                      type="button"
+                      onClick={() => setAspect(a.id)}
+                      className={`rounded-lg border px-3 py-2 text-left transition-all ${
+                        aspect === a.id
+                          ? "border-[#a855f7]/50 bg-[--accent-soft]"
+                          : "border-white/[0.06] bg-white/[0.02] hover:border-white/15"
+                      }`}
+                    >
+                      <span className={`block text-[11px] font-semibold ${aspect === a.id ? "text-[#d8b4fe]" : "text-white/60"}`}>
+                        {a.label}
+                      </span>
+                      <span className="block text-[9px] text-white/30">{a.hint}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {joinTransitions.length > 0 && (
+                <div>
+                  <p className="mb-1.5 px-0.5 text-[10px] font-semibold uppercase tracking-widest text-white/25">
+                    Transição entre os vídeos
+                  </p>
+                  <div className="flex gap-2 overflow-x-auto pb-1.5 scrollbar-hide">
+                    {joinTransitions.map((t) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => setTransition(t.id)}
+                        title={t.description}
+                        className={`w-28 shrink-0 overflow-hidden rounded-xl border text-left transition-all sm:w-32 ${
+                          transition === t.id
+                            ? "border-[#a855f7]/60 shadow-[0_0_0_3px_rgba(168,85,247,0.12)]"
+                            : "border-white/[0.06] hover:border-white/20"
+                        }`}
+                      >
+                        <div className="aspect-video w-full bg-black/40">
+                          {t.preview_path ? (
+                            <video
+                              src={mediaUrl(t.preview_path)}
+                              autoPlay
+                              loop
+                              muted
+                              playsInline
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center">
+                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-white/25">
+                                <path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1" />
+                              </svg>
+                            </div>
+                          )}
+                        </div>
+                        <span
+                          className={`block px-2 py-1.5 text-[10px] font-semibold ${
+                            transition === t.id ? "bg-[--accent-soft] text-[#d8b4fe]" : "bg-white/[0.02] text-white/55"
+                          }`}
+                        >
+                          {t.label}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {(mode === "creative" || mode === "edit" || mode === "join") && (
             <div>
               <input
                 ref={fileInputRef}
                 type="file"
                 multiple
-                accept={mode === "edit" ? "video/*" : "video/*,image/*"}
+                accept={mode === "edit" || mode === "join" ? "video/*" : "video/*,image/*"}
                 onChange={(e) => {
                   addFiles(e.target.files);
                   e.target.value = "";
@@ -476,12 +589,16 @@ function Dashboard() {
                 <span className="text-[13px] font-medium text-white/60">
                   {mode === "edit"
                     ? "Arraste o vídeo bruto aqui, ou clique para escolher"
-                    : "Arraste vídeos e fotos aqui, ou clique para escolher"}
+                    : mode === "join"
+                      ? "Arraste as partes do vídeo aqui, na ordem desejada"
+                      : "Arraste vídeos e fotos aqui, ou clique para escolher"}
                 </span>
                 <span className="text-[11px] text-white/25">
                   {mode === "edit"
                     ? "A IA transcreve tudo, detecta \"corta\", retakes, silêncios e vícios de fala — e monta o corte final."
-                    : "Shorts, gravações do produto, unboxings, depoimentos... A IA quebra em trechos e escolhe os melhores."}
+                    : mode === "join"
+                      ? "Mínimo 2 vídeos. A ordem de envio define a ordem no vídeo final."
+                      : "Shorts, gravações do produto, unboxings, depoimentos... A IA quebra em trechos e escolhe os melhores."}
                 </span>
               </button>
 
@@ -549,7 +666,15 @@ function Dashboard() {
               />
             )}
             <div className="flex items-center gap-3 sm:ml-auto">
-              {mode !== "edit" ? (
+              {mode === "edit" ? (
+                <span className="flex-1 text-[11px] leading-snug text-white/30 sm:max-w-52 sm:flex-none">
+                  Você revisa os cortes sugeridos antes do render final.
+                </span>
+              ) : mode === "join" ? (
+                <span className="flex-1 text-[11px] leading-snug text-white/30 sm:max-w-52 sm:flex-none">
+                  Envie pelo menos 2 vídeos na ordem desejada.
+                </span>
+              ) : (
                 <label className="flex flex-1 cursor-pointer items-center gap-2.5 rounded-xl border border-white/[0.06] bg-white/[0.03] px-3.5 py-3 text-[13px] text-white/50 transition-all hover:bg-white/[0.06] active:bg-white/[0.06] select-none sm:flex-none sm:px-4">
                   <div className="relative shrink-0">
                     <input
@@ -563,10 +688,6 @@ function Dashboard() {
                   </div>
                   Revisar antes
                 </label>
-              ) : (
-                <span className="flex-1 text-[11px] leading-snug text-white/30 sm:max-w-52 sm:flex-none">
-                  Você revisa os cortes sugeridos antes do render final.
-                </span>
               )}
               <button
                 type="submit"
@@ -574,7 +695,9 @@ function Dashboard() {
                   createMutation.isPending ||
                   (mode === "edit"
                     ? files.length === 0 && libraryIds.length === 0
-                    : !topic.trim())
+                    : mode === "join"
+                      ? files.length + libraryIds.length < 2
+                      : !topic.trim())
                 }
                 className="btn-gradient shrink-0 rounded-xl px-5 py-3 text-[13px] font-semibold text-white shadow-lg shadow-[#a855f7]/20 disabled:opacity-30 disabled:shadow-none sm:px-6"
               >
@@ -590,6 +713,8 @@ function Dashboard() {
                   "Criar vídeo"
                 ) : mode === "creative" ? (
                   "Criar criativo"
+                ) : mode === "join" ? (
+                  "Juntar vídeos"
                 ) : (
                   "Editar vídeo"
                 )}

@@ -6,7 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_serializer
 class ProjectCreate(BaseModel):
     topic: str = Field(min_length=3, description="Tema ou ideia do vídeo / brief do criativo")
     title: str | None = None
-    mode: str = "generative"  # generative | creative | edit
+    mode: str = "generative"  # generative | creative | edit | join
     language: str = "pt-BR"
     config: dict = Field(default_factory=dict)
     autostart: bool = True
@@ -359,6 +359,7 @@ class RecentMediaOut(BaseModel):
     media_product_type: str | None = None
     permalink: str | None = None
     thumbnail_url: str | None = None
+    media_url: str | None = None
     timestamp: str | None = None
     like_count: int | None = None
     comments_count: int | None = None

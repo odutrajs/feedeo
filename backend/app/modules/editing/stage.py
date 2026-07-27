@@ -1,10 +1,14 @@
-"""Etapas do pipeline do modo edit: análise dos cortes e render final."""
+"""Etapas do pipeline do modo edit: análise dos cortes e render final.
+
+Também inclui o modo join (juntar N vídeos com transição).
+"""
 
 import json
 
 from app.core.object_storage import get_object_storage
 from app.db.models import AssetKind, EditCut, SourceAsset, SourceStatus
 from app.modules.editing.analysis import build_edl
+from app.modules.editing.join import render_join
 from app.modules.editing.render import KeepSegment, render_edit
 from app.modules.editing.styles import get_style
 from app.modules.sources.media import extract_preview, extract_thumbnail, probe_media
@@ -201,4 +205,64 @@ class EditRenderStage(Stage):
         )
         ctx.log("Vídeo final renderizado")
         if get_object_storage().put_file(output_path, asset.path):
+            ctx.log("Vídeo final salvo no MinIO")
+
+
+def _get_join_videos(ctx: StageContext) -> list[SourceAsset]:
+    videos = sorted(
+        (
+            s
+            for s in ctx.project.sources
+            if s.kind == "video" and s.status != SourceStatus.failed
+        ),
+        key=lambda s: s.id,
+    )
+    if len(videos) < 2:
+        raise RuntimeError("Envie pelo menos 2 vídeos para juntar com transição")
+    return videos
+
+
+class JoinRenderStage(Stage):
+    name = "join_render"
+    label = "Montagem"
+
+    def run(self, ctx: StageContext) -> None:
+        project = ctx.project
+        config = project.config or {}
+        transition = str(config.get("transition", "fade"))
+        aspect = str(config.get("aspect", "9:16"))
+        videos = _get_join_videos(ctx)
+        storage = get_object_storage()
+        paths = [storage.ensure_local(v.path) for v in videos]
+
+        version = ctx.next_version(AssetKind.video)
+        output_path = ctx.subdir("video") / f"final_v{version}.mp4"
+        workdir = ctx.subdir("editing") / "join_tmp"
+
+        ctx.log(
+            f"Juntando {len(videos)} vídeos "
+            f"(transição {transition}, aspecto {aspect})"
+        )
+        for v in videos:
+            ctx.log(f"  · {v.filename}")
+
+        def on_progress(done: int, total: int) -> None:
+            ctx.set_status(f"Normalizando clipes... {done}/{total}")
+
+        meta = render_join(
+            source_paths=paths,
+            output_path=output_path,
+            workdir=workdir,
+            transition=transition,
+            aspect=aspect,
+            on_progress=on_progress,
+        )
+
+        asset = ctx.save_asset(AssetKind.video, output_path, meta=meta)
+        ctx.set_status(
+            f"Vídeo montado: {meta['duration']:.0f}s "
+            f"({meta['clips']} partes, transição {meta['transition']})"
+        )
+        ctx.log("Vídeo final renderizado")
+        if storage.put_file(output_path, asset.path):
             ctx.log("Vídeo final salvo no MinIO")
