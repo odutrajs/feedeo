@@ -1,4 +1,4 @@
-name: Build and Push Images
+name: Build and Deploy
 
 on:
   push:
@@ -90,3 +90,23 @@ jobs:
           context: ./nginx
           push: true
           tags: ${{ env.REGISTRY }}/${{ env.OWNER }}/feedeo-nginx:latest
+
+  deploy-prd:
+    needs: [build-backend, build-frontend, build-scheduler, build-nginx]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to Hostinger VPS
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script_stop: true
+          command_timeout: 30m
+          script: |
+            set -euo pipefail
+            cd /opt/feedeo
+            git fetch origin main
+            git reset --hard origin/main
+            chmod +x scripts/deploy-prd.sh
+            ./scripts/deploy-prd.sh
