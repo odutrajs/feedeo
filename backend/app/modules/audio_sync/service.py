@@ -55,7 +55,9 @@ def transcribe_words(
         for w in segment.words or []:
             text = w.word.strip()
             if text:
-                words.append(Word(text=text, start=w.start, end=w.end))
+                # Cast to native float: whisper returns np.float64, which
+                # psycopg2 stringifies as "np.float64(...)" and breaks Postgres.
+                words.append(Word(text=text, start=float(w.start), end=float(w.end)))
     detected = info.language or (lang or "")
     logger.info(
         "Idioma detectado no áudio: %s (probabilidade %.2f)",
@@ -134,17 +136,31 @@ def build_timeline(
     # Make boundaries contiguous: split the gap between scenes at the midpoint
     if boundaries:
         boundaries[0]["start"] = 0.0
-        boundaries[-1]["end"] = audio_duration
+        boundaries[-1]["end"] = float(audio_duration)
         for i in range(scene_count - 1):
-            midpoint = (boundaries[i]["end"] + boundaries[i + 1]["start"]) / 2
+            midpoint = float(
+                (boundaries[i]["end"] + boundaries[i + 1]["start"]) / 2
+            )
             boundaries[i]["end"] = midpoint
             boundaries[i + 1]["start"] = midpoint
 
+    # Ensure all times are native floats (never np.float64) for DB/JSON.
+    for b in boundaries:
+        if b["start"] is not None:
+            b["start"] = float(b["start"])
+        if b["end"] is not None:
+            b["end"] = float(b["end"])
+
     return {
-        "audio_duration": audio_duration,
+        "audio_duration": float(audio_duration),
         "scenes": boundaries,
         "words": [
-            {"text": w.text, "start": w.start, "end": w.end, "scene_index": w.scene_index}
+            {
+                "text": w.text,
+                "start": float(w.start),
+                "end": float(w.end),
+                "scene_index": w.scene_index,
+            }
             for w in words
         ],
     }

@@ -38,8 +38,8 @@ class AudioSyncStage(Stage):
 
         # Persist scene boundaries on the DB rows
         for scene, boundary in zip(scenes, timeline["scenes"]):
-            scene.start_time = boundary["start"]
-            scene.end_time = boundary["end"]
+            scene.start_time = float(boundary["start"])
+            scene.end_time = float(boundary["end"])
         ctx.db.commit()
 
         path = ctx.project_dir / "timeline.json"
