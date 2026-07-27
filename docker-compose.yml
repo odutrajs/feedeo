@@ -150,26 +150,39 @@ services:
       backend:
         condition: service_started
 
+  # Só gera cert autoassinado se ainda não existir um (evita apagar o Let's Encrypt no redeploy)
   cert-dummy:
     image: alpine:3.20
-    command: >
-      sh -c 'mkdir -p /etc/letsencrypt/live/feedeo.com.br &&
-      apk add --no-cache openssl &&
-      openssl req -x509 -nodes -newkey rsa:2048 -days 1
-      -keyout /etc/letsencrypt/live/feedeo.com.br/privkey.pem
-      -out /etc/letsencrypt/live/feedeo.com.br/fullchain.pem
-      -subj "/CN=feedeo.com.br"'
+    command:
+      - sh
+      - -c
+      - |
+        set -e
+        LIVE=/etc/letsencrypt/live/feedeo.com.br
+        if [ -f "$$LIVE/fullchain.pem" ] && [ -f "$$LIVE/privkey.pem" ]; then
+          echo "Cert already present — skipping dummy"
+          exit 0
+        fi
+        mkdir -p "$$LIVE"
+        apk add --no-cache openssl
+        openssl req -x509 -nodes -newkey rsa:2048 -days 1 \
+          -keyout "$$LIVE/privkey.pem" \
+          -out "$$LIVE/fullchain.pem" \
+          -subj "/CN=feedeo.com.br"
     volumes:
       - certbot-conf:/etc/letsencrypt
 
   certbot-init:
     image: certbot/certbot
-    command: >
-      sh -c 'sleep 15 &&
-      certbot certonly --webroot -w /var/www/certbot
-      --email thiago@feedeo.com.br --agree-tos --no-eff-email
-      -d feedeo.com.br -d www.feedeo.com.br
-      --force-renewal'
+    entrypoint: sh
+    command:
+      - -c
+      - |
+        sleep 15
+        certbot certonly --webroot -w /var/www/certbot \
+          --email thiago@feedeo.com.br --agree-tos --no-eff-email \
+          -d feedeo.com.br -d www.feedeo.com.br \
+          --non-interactive --keep-until-expiring
     volumes:
       - certbot-conf:/etc/letsencrypt
       - certbot-www:/var/www/certbot
@@ -180,8 +193,15 @@ services:
   certbot-renew:
     image: certbot/certbot
     restart: unless-stopped
-    entrypoint: >
-      sh -c 'trap exit TERM; while :; do sleep 12h & wait $${!}; certbot renew; done'
+    entrypoint: sh
+    command:
+      - -c
+      - |
+        trap exit TERM
+        while :; do
+          sleep 12h & wait $${!}
+          certbot renew
+        done
     volumes:
       - certbot-conf:/etc/letsencrypt
       - certbot-www:/var/www/certbot
@@ -191,9 +211,13 @@ services:
 
   nginx-reload:
     image: docker:27-cli
-    command: >
-      sh -c 'sleep 5 && docker kill -s HUP feedeo-nginx-1 2>/dev/null ||
-      docker kill -s HUP feedeo_nginx_1 2>/dev/null || true'
+    command:
+      - sh
+      - -c
+      - |
+        sleep 5
+        docker kill -s HUP feedeo-nginx-1 2>/dev/null ||
+        docker kill -s HUP feedeo_nginx_1 2>/dev/null || true
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
